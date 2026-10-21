@@ -2,6 +2,21 @@
 
 All notable changes to this plugin are documented here.
 
+## 0.5.0 - 2026-10-21
+
+* Added optional job notifications, off by default. Configure one or more
+  **Notify roles** (Site administration > Plugins > Local plugins >
+  Schedule Course Copy settings) and the plugin emails, through Moodle's own
+  messaging system, whoever holds those roles in the template course when a
+  job is scheduled, and again — plus everyone enrolled in the template — once
+  it is revealed (live). Both notifications have an admin-editable subject
+  and body with `{token}` placeholders (course names, course link, start
+  date, recipient name). Fixed the "Program director role" setting's label,
+  which read as if it were a required, universal role; it is optional and
+  only used when one is recorded against a specific job.
+* Also corrected the `jobformintro` string, which still said no emails are
+  ever sent automatically.
+
 ## 0.4.0 - 2026-10-21
 
 * Renamed the plugin from Auto Copy (`local_autocopy`) to **Schedule Course

@@ -53,4 +53,44 @@ if ($hassiteconfig) {
         $defaultpdrole ? $defaultpdrole->id : 0,
         $roleoptions
     ));
+
+    $settings->add(new admin_setting_configmultiselect(
+        'local_schedulecoursecopy/notifyroles',
+        get_string('settings_notifyroles', 'local_schedulecoursecopy'),
+        get_string('settings_notifyroles_desc', 'local_schedulecoursecopy'),
+        [],
+        $roleoptions
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_schedulecoursecopy/scheduledemailsubject',
+        get_string('settings_scheduledemailsubject', 'local_schedulecoursecopy'),
+        get_string('settings_emailtokens_desc', 'local_schedulecoursecopy'),
+        get_string('settings_scheduledemailsubject_default', 'local_schedulecoursecopy'),
+        PARAM_TEXT
+    ));
+
+    $settings->add(new admin_setting_configtextarea(
+        'local_schedulecoursecopy/scheduledemailbody',
+        get_string('settings_scheduledemailbody', 'local_schedulecoursecopy'),
+        get_string('settings_emailtokens_desc', 'local_schedulecoursecopy'),
+        get_string('settings_scheduledemailbody_default', 'local_schedulecoursecopy'),
+        PARAM_TEXT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_schedulecoursecopy/liveemailsubject',
+        get_string('settings_liveemailsubject', 'local_schedulecoursecopy'),
+        get_string('settings_emailtokens_desc', 'local_schedulecoursecopy'),
+        get_string('settings_liveemailsubject_default', 'local_schedulecoursecopy'),
+        PARAM_TEXT
+    ));
+
+    $settings->add(new admin_setting_configtextarea(
+        'local_schedulecoursecopy/liveemailbody',
+        get_string('settings_liveemailbody', 'local_schedulecoursecopy'),
+        get_string('settings_emailtokens_desc', 'local_schedulecoursecopy'),
+        get_string('settings_liveemailbody_default', 'local_schedulecoursecopy'),
+        PARAM_TEXT
+    ));
 }

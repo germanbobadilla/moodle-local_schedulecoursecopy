@@ -34,11 +34,13 @@ A job moves through:
 Any step can end in **Failed**, with the reason recorded and shown on the
 report.
 
-This version sends no emails at all — not to the program director, not to
-students. The program director role only controls who gets _enrolled_ and
-when; every "who needs telling what" step currently happens outside the
-plugin, by whatever channel you already use. That may change in a later
-version.
+Notifications are optional and off by default. Configure one or more
+**Notify roles** in the plugin settings and the plugin sends two
+notifications per job, through Moodle's own messaging system: one when the
+job is scheduled, one when it is revealed (live). See
+[Notifications](#notifications) below. The program director role is
+separate from this: it only controls who gets _enrolled_ into the new
+course, never who gets notified.
 
 ## Requirements
 
@@ -73,7 +75,9 @@ container (or a host cron entry) that loops `php admin/cli/cron.php`.
 
 1. **Site administration > Plugins > Local plugins > Schedule Course Copy settings** —
    set the **Program director role**, the role a program director is
-   enrolled with if one is ever recorded against a job. Default: Manager.
+   enrolled with if one is ever recorded against a job (default: Manager),
+   and, if you want notifications, the **Notify roles** and the email
+   subject/body templates. See [Notifications](#notifications).
 2. **Site administration > Local plugins > Schedule Course Copy > Categories** — build
    your campus/program tree. A category needs a Moodle course category mapped
    before jobs can be created in it.
@@ -82,6 +86,41 @@ container (or a host cron entry) that loops `php admin/cli/cron.php`.
    to copy it.
 4. **Status report** — filter by category, see every job's status, and reveal
    a course once its copy is ready.
+
+## Notifications
+
+Off by default. Set **Notify roles** (Site administration > Plugins >
+Local plugins > Schedule Course Copy settings) to one or more roles and the
+plugin sends two notifications per job, through Moodle's own messaging
+system (**Site administration > Messaging > Notification preferences** — the
+usual popup/email/mobile choices apply per recipient, same as any other
+Moodle notification):
+
+- **Scheduled** — sent as soon as the job is created, to whoever holds a
+  notify role in the _template_ course (for example a "Course Creator" or
+  "Program Director" role you use for this purpose — these are ordinary
+  Moodle roles, not specific to this plugin).
+- **Live** — sent when the job is revealed, to the same notify-role holders
+  plus everyone enrolled in the template, regardless of role — covering
+  instructors and anyone else who was actually teaching it, not just
+  whoever was picked out by role.
+
+Both notifications use an admin-editable subject and body, with these
+placeholders:
+
+| Placeholder          | Resolves to                                                      |
+| --------------------- | ----------------------------------------------------------------- |
+| `{coursefullname}`   | The new course's full name.                                      |
+| `{courseshortname}`  | The new course's short name.                                     |
+| `{templatefullname}` | The template course's full name.                                 |
+| `{courselink}`       | A link to the new course. Blank in the scheduled email, since the course does not exist yet. |
+| `{startdate}`        | The new course's start date.                                     |
+| `{recipientname}`    | The recipient's own full name.                                   |
+
+A placeholder left out of a template is simply not replaced; a typo in one
+is left as literal text, visible rather than silently blanked. If sending a
+notification fails (for example a broken mail setup) the job itself is not
+affected — the failure is only logged via `debugging()`.
 
 ## Status endpoint
 

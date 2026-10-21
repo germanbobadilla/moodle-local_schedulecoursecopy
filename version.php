@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_schedulecoursecopy';
-$plugin->version   = 2026102100;
+$plugin->version   = 2026102101;
 $plugin->requires  = 2022041900;
 $plugin->supported = [400, 503];
 $plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = '0.4.0';
+$plugin->release   = '0.5.0';

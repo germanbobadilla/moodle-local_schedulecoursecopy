@@ -31,10 +31,14 @@ use local_schedulecoursecopy\event\job_status_changed;
  * deliberately no separate "nominate an instructor" step: whoever is enrolled
  * in the template is already enrolled in the copy.
  *
- * This version sends no emails: the program director is enrolled at reveal time
- * only if one was recorded against the job (it is optional). Nobody is notified
- * automatically; progress is only visible through the status report and the
- * status endpoint.
+ * The program director is enrolled at reveal time only if one was recorded
+ * against the job (it is optional); this never sends them a notification.
+ * Separately, if the "Notify roles" setting is configured, holders of those
+ * roles in the template course are emailed when a job is scheduled and again
+ * once it is revealed (live); on reveal, everyone enrolled in the template is
+ * emailed too. See notification_helper. With no notify roles configured,
+ * nobody is notified automatically and progress is only visible through the
+ * status report and the status endpoint.
  *
  * @package    local_schedulecoursecopy
  * @copyright  2026 German Bobadilla, MA
@@ -96,6 +100,12 @@ class job_manager {
         $record->id = $DB->insert_record('local_schedulecoursecopy_job', $record);
 
         job_created::create(['objectid' => $record->id, 'context' => \context_system::instance()])->trigger();
+
+        try {
+            notification_helper::notify_scheduled($record);
+        } catch (\Throwable $e) {
+            debugging('Failed to send job scheduled notification: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
 
         return $record->id;
     }
@@ -347,6 +357,12 @@ class job_manager {
         }
 
         self::transition($jobid, $job->status, self::STATUS_REVEALED);
+
+        try {
+            notification_helper::notify_live(self::get($jobid));
+        } catch (\Throwable $e) {
+            debugging('Failed to send job live notification: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
     }
 
     /**
