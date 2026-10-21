@@ -1,0 +1,92 @@
+.badge.local-schedulecoursecopy-status-scheduled,
+.badge.local-schedulecoursecopy-status-copying,
+.badge.local-schedulecoursecopy-status-awaiting_instructor,
+.badge.local-schedulecoursecopy-status-ready_to_reveal,
+.badge.local-schedulecoursecopy-status-revealed,
+.badge.local-schedulecoursecopy-status-failed {
+    padding: 0.4em 0.7em;
+    font-size: 0.8em;
+    font-weight: 600;
+    color: #fff;
+}
+
+.badge.local-schedulecoursecopy-status-scheduled {
+    background-color: #6c757d;
+}
+
+.badge.local-schedulecoursecopy-status-copying {
+    background-color: #0d6efd;
+}
+
+.badge.local-schedulecoursecopy-status-awaiting_instructor {
+    background-color: #fd7e14;
+}
+
+.badge.local-schedulecoursecopy-status-ready_to_reveal {
+    background-color: #6610f2;
+}
+
+.badge.local-schedulecoursecopy-status-revealed {
+    background-color: #198754;
+}
+
+.badge.local-schedulecoursecopy-status-failed {
+    background-color: #dc3545;
+}
+
+.local-schedulecoursecopy-report td {
+    vertical-align: middle;
+}
+
+/*
+ * The bulk "add courses" panel (category_view.php / bulk_course_table.php).
+ * This is a plain HTML table inside a Bootstrap card, not a Moodle form:
+ * repeat_elements()/HTML_QuickForm_group could not keep a compact multi
+ * field row both correctly validated (a group never shows a per field
+ * error) and reliably aligned (a growable column drifts independently
+ * between the header and each row once their content differs), so this
+ * is built and styled directly instead of fighting the form renderer.
+ */
+.local-schedulecoursecopy-bulkcard {
+    border: 1px solid #dee2e6;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.local-schedulecoursecopy-bulktable {
+    margin-bottom: 0;
+}
+
+.local-schedulecoursecopy-bulktable th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    border-top: 0;
+    white-space: nowrap;
+}
+
+.local-schedulecoursecopy-bulktable td {
+    vertical-align: middle;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
+
+.local-schedulecoursecopy-bulktable input[type="text"],
+.local-schedulecoursecopy-bulktable input[type="date"] {
+    min-width: 9rem;
+}
+
+.local-schedulecoursecopy-bulktable input[name^="fullname"] {
+    min-width: 14rem;
+}
+
+.local-schedulecoursecopy-col-remove-head {
+    width: 1%;
+}
+
+.local-schedulecoursecopy-rowerror td {
+    padding-top: 0;
+    padding-bottom: 0.5rem;
+    border-top: 0;
+}

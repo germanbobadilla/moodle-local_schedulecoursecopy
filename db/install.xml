@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/schedulecoursecopy/db" VERSION="20260921" COMMENT="XMLDB file for Moodle local/schedulecoursecopy"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="local_schedulecoursecopy_category" COMMENT="A campus/program grouping used to organise Schedule Course Copy jobs">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="parentid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Parent local_schedulecoursecopy_category id, null for a top level campus"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Display name, e.g. Modesto or Vocational Nurse"/>
+        <FIELD NAME="moodlecategoryid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="The real Moodle course category new live courses are created in, required on categories that hold jobs"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="parentid" TYPE="foreign" FIELDS="parentid" REFTABLE="local_schedulecoursecopy_category" REFFIELDS="id"/>
+        <KEY NAME="moodlecategoryid" TYPE="foreign" FIELDS="moodlecategoryid" REFTABLE="course_categories" REFFIELDS="id"/>
+        <KEY NAME="usermodified" TYPE="foreign" FIELDS="usermodified" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="parentid_idx" UNIQUE="false" FIELDS="parentid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_schedulecoursecopy_job" COMMENT="One scheduled or completed template-to-live course copy">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="categoryid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="local_schedulecoursecopy_category this job belongs to"/>
+        <FIELD NAME="templatecourseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="The template course to copy from"/>
+        <FIELD NAME="fullname" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Full name of the new live course"/>
+        <FIELD NAME="shortname" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Short name of the new live course"/>
+        <FIELD NAME="idnumber" TYPE="char" LENGTH="100" NOTNULL="false" SEQUENCE="false" COMMENT="Optional ID number of the new live course"/>
+        <FIELD NAME="startdate" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="enddate" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="scheduledate" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="When the scheduled task should start the copy"/>
+        <FIELD NAME="programdirectorid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Optional user enrolled as the program director once the course is revealed"/>
+        <FIELD NAME="coursemanagerid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Optional course manager user recorded against this job"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="30" NOTNULL="true" DEFAULT="scheduled" SEQUENCE="false" COMMENT="scheduled, copying, ready_to_reveal, revealed or failed"/>
+        <FIELD NAME="backupid" TYPE="char" LENGTH="32" NOTNULL="false" SEQUENCE="false" COMMENT="core_backup backup controller id for this copy"/>
+        <FIELD NAME="restoreid" TYPE="char" LENGTH="32" NOTNULL="false" SEQUENCE="false" COMMENT="core_backup restore controller id for this copy"/>
+        <FIELD NAME="newcourseid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="The live course once the copy has been created"/>
+        <FIELD NAME="failurereason" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="categoryid" TYPE="foreign" FIELDS="categoryid" REFTABLE="local_schedulecoursecopy_category" REFFIELDS="id"/>
+        <KEY NAME="templatecourseid" TYPE="foreign" FIELDS="templatecourseid" REFTABLE="course" REFFIELDS="id"/>
+        <KEY NAME="newcourseid" TYPE="foreign" FIELDS="newcourseid" REFTABLE="course" REFFIELDS="id"/>
+        <KEY NAME="programdirectorid" TYPE="foreign" FIELDS="programdirectorid" REFTABLE="user" REFFIELDS="id"/>
+        <KEY NAME="coursemanagerid" TYPE="foreign" FIELDS="coursemanagerid" REFTABLE="user" REFFIELDS="id"/>
+        <KEY NAME="usermodified" TYPE="foreign" FIELDS="usermodified" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="categoryid_idx" UNIQUE="false" FIELDS="categoryid"/>
+        <INDEX NAME="status_idx" UNIQUE="false" FIELDS="status"/>
+        <INDEX NAME="scheduledate_idx" UNIQUE="false" FIELDS="scheduledate"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>
