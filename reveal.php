@@ -46,14 +46,7 @@ if ($job->status !== job_manager::STATUS_READY_TO_REVEAL) {
 }
 
 $url = new moodle_url('/local/schedulecoursecopy/reveal.php', ['id' => $id]);
-$PAGE->set_context(context_system::instance());
-$PAGE->set_url($url);
-$PAGE->set_pagelayout('admin');
-$PAGE->set_title(get_string('jobreveal', 'local_schedulecoursecopy'));
-$PAGE->set_heading(get_string('pluginname', 'local_schedulecoursecopy'));
-$PAGE->navbar->add(get_string('pluginname', 'local_schedulecoursecopy'), new moodle_url('/local/schedulecoursecopy/index.php'));
-$PAGE->navbar->add(get_string('navreport', 'local_schedulecoursecopy'), $reporturl);
-$PAGE->navbar->add(get_string('jobreveal', 'local_schedulecoursecopy'), $url);
+navigation::setup_page($url, get_string('jobreveal', 'local_schedulecoursecopy'));
 
 if ($confirm) {
     require_sesskey();
@@ -61,11 +54,10 @@ if ($confirm) {
     redirect($reporturl, get_string('jobrevealed', 'local_schedulecoursecopy'), null, \core\output\notification::NOTIFY_SUCCESS);
 }
 
-echo $OUTPUT->header();
-navigation::print_tabs('report');
+navigation::header('report', get_string('jobreveal', 'local_schedulecoursecopy'));
 echo $OUTPUT->confirm(
     get_string('jobrevealconfirm', 'local_schedulecoursecopy', $job->fullname),
     new moodle_url('/local/schedulecoursecopy/reveal.php', ['id' => $id, 'confirm' => 1, 'sesskey' => sesskey()]),
     $reporturl
 );
-echo $OUTPUT->footer();
+navigation::footer();

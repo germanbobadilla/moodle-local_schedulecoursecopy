@@ -25,6 +25,16 @@
 defined('MOODLE_INTERNAL') || die();
 
 $capabilities = [
+    // Read-only access to the reports and the get_jobs web service, e.g. for a reporting
+    // service account.
+    'local/schedulecoursecopy:viewreports' => [
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'archetypes' => [
+            'manager' => CAP_ALLOW,
+        ],
+    ],
+
 
     // Manage Schedule Course Copy categories and jobs, and view the status report.
     // No archetype is granted this by default: site administrators bypass all

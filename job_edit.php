@@ -33,18 +33,11 @@ require_login();
 require_capability('local/schedulecoursecopy:manage', context_system::instance());
 
 $id = optional_param('id', 0, PARAM_INT);
-$reporturl = new moodle_url('/local/schedulecoursecopy/report.php');
+$reporturl = new moodle_url(optional_param('returnurl', '/local/schedulecoursecopy/report.php', PARAM_LOCALURL));
 $url = new moodle_url('/local/schedulecoursecopy/job_edit.php', $id ? ['id' => $id] : []);
 
-$PAGE->set_context(context_system::instance());
-$PAGE->set_url($url);
-$PAGE->set_pagelayout('admin');
 $title = $id ? get_string('jobedit', 'local_schedulecoursecopy') : get_string('navnewjob', 'local_schedulecoursecopy');
-$PAGE->set_title($title);
-$PAGE->set_heading(get_string('pluginname', 'local_schedulecoursecopy'));
-$PAGE->navbar->add(get_string('pluginname', 'local_schedulecoursecopy'), new moodle_url('/local/schedulecoursecopy/index.php'));
-$PAGE->navbar->add(get_string('navreport', 'local_schedulecoursecopy'), $reporturl);
-$PAGE->navbar->add($title, $url);
+navigation::setup_page($url, $title);
 
 $job = null;
 if ($id) {
@@ -65,7 +58,10 @@ if ($job) {
     $template = $DB->get_record('course', ['id' => $job->templatecourseid], 'shortname');
     $formdata = clone $job;
     $formdata->templateshortname = $template ? $template->shortname : '';
+    $formdata->returnurl = $reporturl->out_as_local_url(false);
     $form->set_data($formdata);
+} else {
+    $form->set_data(['returnurl' => $reporturl->out_as_local_url(false)]);
 }
 
 if ($form->is_cancelled()) {
@@ -85,9 +81,8 @@ if ($form->is_cancelled()) {
     }
 }
 
-echo $OUTPUT->header();
-echo $OUTPUT->heading($title);
-navigation::print_tabs('report');
-echo html_writer::div(get_string('jobformintro', 'local_schedulecoursecopy'), 'text-muted mb-3');
+navigation::header('report', $title, get_string('jobformintro', 'local_schedulecoursecopy'));
+echo html_writer::start_div('scc-panel scc-formpanel');
 $form->display();
-echo $OUTPUT->footer();
+echo html_writer::end_div();
+navigation::footer();

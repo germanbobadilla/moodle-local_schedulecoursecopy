@@ -17,6 +17,7 @@
 namespace local_schedulecoursecopy\form;
 
 use local_schedulecoursecopy\local\category_manager;
+use local_schedulecoursecopy\local\job_manager;
 use local_schedulecoursecopy\local\user_picker;
 
 /**
@@ -39,6 +40,8 @@ class job_form extends \moodleform {
 
         $mform->addElement('hidden', 'id');
         $mform->setType('id', PARAM_INT);
+        $mform->addElement('hidden', 'returnurl');
+        $mform->setType('returnurl', PARAM_LOCALURL);
 
         $categories = category_manager::get_job_categories();
         $categoryoptions = ['' => get_string('choosedots')];
@@ -84,6 +87,10 @@ class job_form extends \moodleform {
         );
         $mform->addHelpButton('scheduledate', 'jobscheduledate', 'local_schedulecoursecopy');
 
+        $mform->addElement('select', 'visibility', get_string('jobvisibility', 'local_schedulecoursecopy'),
+            job_manager::visibility_options());
+        $mform->setDefault('visibility', job_manager::default_visibility());
+
         $useroptions = ['' => get_string('choosedots')] + user_picker::options();
         $mform->addElement(
             'autocomplete',
@@ -91,7 +98,6 @@ class job_form extends \moodleform {
             get_string('jobprogramdirector', 'local_schedulecoursecopy'),
             $useroptions
         );
-        $mform->addRule('programdirectorid', get_string('required'), 'required', null, 'client');
 
         $this->add_action_buttons();
     }
@@ -112,16 +118,20 @@ class job_form extends \moodleform {
             $errors['categoryid'] = get_string('required');
         }
 
-        if (empty($data['programdirectorid'])) {
-            $errors['programdirectorid'] = get_string('required');
-        }
-
         if (!$DB->record_exists('course', ['shortname' => trim($data['templateshortname'])])) {
             $errors['templateshortname'] = get_string('errortemplatenotfound', 'local_schedulecoursecopy');
         }
 
-        $existing = $DB->get_record('course', ['shortname' => trim($data['shortname'])], 'id');
         $editingid = !empty($data['id']) ? (int) $data['id'] : 0;
+        if ($DB->record_exists_select(
+            'local_schedulecoursecopy_job',
+            'shortname = :shortname AND status <> :cancelled AND id <> :id',
+            ['shortname' => trim($data['shortname']), 'cancelled' => job_manager::STATUS_CANCELLED, 'id' => $editingid]
+        )) {
+            $errors['shortname'] = get_string('errorshortnametaken', 'local_schedulecoursecopy');
+        }
+
+        $existing = $DB->get_record('course', ['shortname' => trim($data['shortname'])], 'id');
         if ($existing) {
             $current = $editingid ? $DB->get_record('local_schedulecoursecopy_job', ['id' => $editingid]) : null;
             if (!$current || (int) $current->newcourseid !== (int) $existing->id) {

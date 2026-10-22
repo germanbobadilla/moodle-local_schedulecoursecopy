@@ -16,9 +16,12 @@
 
 namespace local_schedulecoursecopy\local;
 
+use html_writer;
+use moodle_url;
+
 /**
- * Renders the job listing table shared by the status report and the
- * per category view.
+ * Renders the job listing tables: the per category course list and the status report.
+ * Each row opens the job detail drawer.
  *
  * @package    local_schedulecoursecopy
  * @copyright  2026 German Bobadilla, MA
@@ -26,92 +29,124 @@ namespace local_schedulecoursecopy\local;
  */
 class job_table {
     /**
-     * Build the HTML for a table of jobs.
+     * The "Courses in this category" table.
      *
-     * @param \stdClass[] $jobs Jobs to display, as returned by job_manager::get_all().
-     * @param \moodle_url $actionurl The page actions (delete) should post/redirect back to.
-     * @param bool $showcategorycolumn Whether to include the category column.
-     * @return string The table HTML, or an empty string when there are no jobs.
+     * @param \stdClass[] $jobs The jobs, newest copy date first.
+     * @param moodle_url $pageurl The page the drawer opens over.
+     * @return string HTML.
      */
-    public static function render(array $jobs, \moodle_url $actionurl, bool $showcategorycolumn = true): string {
-        global $DB;
+    public static function render_category(array $jobs, moodle_url $pageurl): string {
+        $templates = ui::template_shortnames($jobs);
 
-        if (!$jobs) {
-            return '';
+        $head = '';
+        foreach (['jobcourse', 'bulkcoltemplate', 'bulkcolscheduledate', 'jobruns', 'statuscolumn'] as $key) {
+            $head .= html_writer::tag('th', get_string($key, 'local_schedulecoursecopy'), ['scope' => 'col']);
         }
 
-        $statuslabels = [
-            job_manager::STATUS_SCHEDULED => get_string('status_scheduled', 'local_schedulecoursecopy'),
-            job_manager::STATUS_COPYING => get_string('status_copying', 'local_schedulecoursecopy'),
-            job_manager::STATUS_READY_TO_REVEAL => get_string('status_ready_to_reveal', 'local_schedulecoursecopy'),
-            job_manager::STATUS_REVEALED => get_string('status_revealed', 'local_schedulecoursecopy'),
-            job_manager::STATUS_FAILED => get_string('status_failed', 'local_schedulecoursecopy'),
-        ];
-
-        $table = new \html_table();
-        $table->attributes['class'] = 'generaltable local-schedulecoursecopy-report';
-        $table->head = [get_string('jobfullname', 'local_schedulecoursecopy')];
-        if ($showcategorycolumn) {
-            $table->head[] = get_string('jobcategory', 'local_schedulecoursecopy');
-        }
-        $table->head[] = get_string('jobscheduledate', 'local_schedulecoursecopy');
-        $table->head[] = get_string('statuscolumn', 'local_schedulecoursecopy');
-        $table->head[] = '';
-
+        $rows = '';
         foreach ($jobs as $job) {
-            $namecell = $job->newcourseid
-                ? \html_writer::link(new \moodle_url('/course/view.php', ['id' => $job->newcourseid]), $job->fullname)
-                : \html_writer::tag('span', $job->fullname);
-            $namecell .= \html_writer::div($job->shortname, 'text-muted small');
-
-            $status = \html_writer::tag(
-                'span',
-                $statuslabels[$job->status] ?? $job->status,
-                ['class' => 'badge local-schedulecoursecopy-status-' . $job->status]
+            $url = ui::job_url($pageurl, (int) $job->id);
+            $rows .= html_writer::tag(
+                'tr',
+                html_writer::tag('td', html_writer::link($url, s($job->fullname), ['class' => 'scc-rowlink'])
+                    . html_writer::div(s($job->shortname), 'scc-muted small'))
+                . html_writer::tag('td', s($templates[$job->templatecourseid] ?? '—'), ['class' => 'scc-mono'])
+                . html_writer::tag('td', ui::date_long((int) $job->scheduledate), ['class' => 'text-nowrap'])
+                . html_writer::tag('td', ui::runs($job), ['class' => 'text-nowrap scc-secondary'])
+                . html_writer::tag('td', ui::status_badge($job->status)),
+                ['class' => 'scc-clickrow', 'data-href' => $url->out(false)]
             );
-            if ($job->status === job_manager::STATUS_FAILED && !empty($job->failurereason)) {
-                $status .= \html_writer::div(s($job->failurereason), 'text-danger small mt-1');
-            }
-
-            $actions = [];
-            if ($job->status === job_manager::STATUS_SCHEDULED) {
-                $actions[] = \html_writer::link(
-                    new \moodle_url('/local/schedulecoursecopy/job_edit.php', ['id' => $job->id]),
-                    get_string('edit'),
-                    ['class' => 'btn btn-sm btn-outline-secondary']
-                );
-                $actions[] = \html_writer::link(
-                    new \moodle_url($actionurl, ['action' => 'delete', 'id' => $job->id, 'sesskey' => sesskey()]),
-                    get_string('delete'),
-                    ['class' => 'btn btn-sm btn-outline-danger']
-                );
-            }
-            if ($job->status === job_manager::STATUS_READY_TO_REVEAL) {
-                $actions[] = \html_writer::link(
-                    new \moodle_url('/local/schedulecoursecopy/reveal.php', ['id' => $job->id]),
-                    get_string('jobreveal', 'local_schedulecoursecopy'),
-                    ['class' => 'btn btn-sm btn-primary']
-                );
-            }
-            if ($job->status === job_manager::STATUS_FAILED) {
-                $actions[] = \html_writer::link(
-                    new \moodle_url($actionurl, ['action' => 'delete', 'id' => $job->id, 'sesskey' => sesskey()]),
-                    get_string('delete'),
-                    ['class' => 'btn btn-sm btn-outline-danger']
-                );
-            }
-
-            $row = [$namecell];
-            if ($showcategorycolumn) {
-                $row[] = $DB->get_field('local_schedulecoursecopy_category', 'name', ['id' => $job->categoryid]) ?: '-';
-            }
-            $row[] = userdate($job->scheduledate);
-            $row[] = $status;
-            $row[] = \html_writer::div(implode(' ', $actions), 'd-flex gap-1 flex-wrap');
-
-            $table->data[] = $row;
         }
 
-        return \html_writer::table($table);
+        return html_writer::div(
+            html_writer::tag(
+                'table',
+                html_writer::tag('thead', html_writer::tag('tr', $head)) . html_writer::tag('tbody', $rows),
+                ['class' => 'scc-table table-reboot']
+            ),
+            'scc-tablewrap'
+        );
+    }
+
+    /**
+     * The status report table, with a selection checkbox per row.
+     *
+     * @param \stdClass[] $jobs The jobs, already filtered and sorted.
+     * @param moodle_url $pageurl The page the drawer opens over.
+     * @return string HTML.
+     */
+    public static function render_report(array $jobs, moodle_url $pageurl): string {
+        $templates = ui::template_shortnames($jobs);
+        $categories = category_manager::get_all();
+
+        $selectall = html_writer::empty_tag('input', [
+            'type' => 'checkbox',
+            'class' => 'form-check-input',
+            'data-scc-selectall' => '1',
+            'aria-label' => get_string('selectall'),
+        ]);
+        $head = html_writer::tag('th', $selectall, ['scope' => 'col', 'class' => 'scc-col-check']);
+        foreach (['jobcourse', 'jobcategory', 'bulkcolscheduledate', 'jobruns', 'statuscolumn'] as $key) {
+            $head .= html_writer::tag('th', get_string($key, 'local_schedulecoursecopy'), ['scope' => 'col']);
+        }
+        $head .= html_writer::tag('th', '', ['scope' => 'col']);
+
+        $rows = '';
+        foreach ($jobs as $job) {
+            $url = ui::job_url($pageurl, (int) $job->id);
+            $check = html_writer::empty_tag('input', [
+                'type' => 'checkbox',
+                'name' => 'ids[]',
+                'value' => $job->id,
+                'class' => 'form-check-input',
+                'data-scc-select' => '1',
+                'aria-label' => get_string('select') . ' ' . s($job->fullname),
+            ]);
+            $rows .= html_writer::tag(
+                'tr',
+                html_writer::tag('td', $check, ['class' => 'scc-col-check'])
+                . html_writer::tag('td', html_writer::link($url, s($job->fullname), ['class' => 'scc-rowlink'])
+                    . html_writer::div(
+                        s($job->shortname) . ' · ' . get_string('fromtemplate', 'local_schedulecoursecopy',
+                            s($templates[$job->templatecourseid] ?? '—')),
+                        'scc-muted small'
+                    ))
+                . html_writer::tag('td', s(category_manager::get_path_string((int) $job->categoryid, $categories)),
+                    ['class' => 'scc-secondary'])
+                . html_writer::tag('td', ui::date_long((int) $job->scheduledate), ['class' => 'text-nowrap'])
+                . html_writer::tag('td', ui::runs($job), ['class' => 'text-nowrap scc-secondary'])
+                . html_writer::tag('td', ui::status_badge($job->status))
+                . html_writer::tag('td', ui::icon('fa-solid fa-chevron-right'), ['class' => 'text-end scc-muted']),
+                ['class' => 'scc-clickrow', 'data-href' => $url->out(false)]
+            );
+        }
+
+        return html_writer::div(
+            html_writer::tag(
+                'table',
+                html_writer::tag('thead', html_writer::tag('tr', $head)) . html_writer::tag('tbody', $rows),
+                ['class' => 'scc-table table-reboot']
+            ),
+            'scc-tablewrap'
+        );
+    }
+
+    /**
+     * Every visible job status, in lifecycle order, mapped to its display label.
+     *
+     * @return array<string, string>
+     */
+    public static function status_labels(): array {
+        return ui::status_labels();
+    }
+
+    /**
+     * A coloured status badge.
+     *
+     * @param string $status One of the job_manager::STATUS_* values.
+     * @return string HTML.
+     */
+    public static function status_badge(string $status): string {
+        return ui::status_badge($status);
     }
 }

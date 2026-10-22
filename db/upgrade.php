@@ -94,5 +94,52 @@ function xmldb_local_schedulecoursecopy_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026092212, 'local', 'schedulecoursecopy');
     }
 
+    if ($oldversion < 2026102200) {
+        // Category ID number; job visibility mode, failure attempts and log.
+        $table = new xmldb_table('local_schedulecoursecopy_category');
+        $field = new xmldb_field('idnumber', XMLDB_TYPE_CHAR, '100', null, null, null, null, 'moodlecategoryid');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        $table = new xmldb_table('local_schedulecoursecopy_job');
+        $fields = [
+            new xmldb_field('visibility', XMLDB_TYPE_CHAR, '10', null, XMLDB_NOTNULL, null, 'start', 'status'),
+            new xmldb_field('attempts', XMLDB_TYPE_INTEGER, '4', null, XMLDB_NOTNULL, null, '0', 'visibility'),
+            new xmldb_field('log', XMLDB_TYPE_TEXT, null, null, null, null, null, 'failurereason'),
+        ];
+        foreach ($fields as $field) {
+            if (!$dbman->field_exists($table, $field)) {
+                $dbman->add_field($table, $field);
+            }
+        }
+
+        // Every job created before this version was revealed by hand.
+        $DB->set_field('local_schedulecoursecopy_job', 'visibility', 'manual');
+
+        // Failed jobs already failed at least once.
+        $DB->set_field('local_schedulecoursecopy_job', 'attempts', 1, ['status' => 'failed']);
+
+        // Seed the new failure email settings so the upgrade does not stop on them.
+        foreach (['failemailsubject', 'failemailbody'] as $name) {
+            if (get_config('local_schedulecoursecopy', $name) === false) {
+                set_config($name, get_string('settings_' . $name . '_default', 'local_schedulecoursecopy'), 'local_schedulecoursecopy');
+            }
+        }
+        if (get_config('local_schedulecoursecopy', 'failnotify') === false) {
+            set_config('failnotify', 1, 'local_schedulecoursecopy');
+        }
+
+        upgrade_plugin_savepoint(true, 2026102200, 'local', 'schedulecoursecopy');
+    }
+
+    if ($oldversion < 2026102201) {
+        // New copies are revealed as soon as they are copied unless an admin chooses otherwise.
+        if (get_config('local_schedulecoursecopy', 'defaultvisibility') === false) {
+            set_config('defaultvisibility', 'copy', 'local_schedulecoursecopy');
+        }
+        upgrade_plugin_savepoint(true, 2026102201, 'local', 'schedulecoursecopy');
+    }
+
     return true;
 }

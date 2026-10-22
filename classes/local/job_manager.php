@@ -23,7 +23,9 @@ use local_schedulecoursecopy\event\job_status_changed;
  * Creates, schedules and tracks Schedule Course Copy jobs.
  *
  * A job takes a template course through: scheduled -> copying -> ready_to_reveal
- * -> revealed (or failed at any automated step). The actual course duplication is
+ * -> revealed (or failed at any automated step; cancelled before copying). Copied
+ * courses are revealed on their start date, as soon as they are copied, or by hand,
+ * depending on the job's visibility mode. The actual course duplication is
  * delegated entirely to Moodle's own course copy engine (\copy_helper and the
  * core_course\task\asynchronous_copy_task adhoc task). Every user enrolled in
  * the template is enrolled in the copy with their same role, and nothing else:
@@ -60,6 +62,21 @@ class job_manager {
     /** @var string The copy failed. See the job's failurereason. */
     const STATUS_FAILED = 'failed';
 
+    /** @var string Cancelled before it started copying. Hidden from every list. */
+    const STATUS_CANCELLED = 'cancelled';
+
+    /** @var string Reveal the copy automatically on its course start date. */
+    const VISIBILITY_START = 'start';
+
+    /** @var string Reveal the copy as soon as it has been copied. */
+    const VISIBILITY_COPY = 'copy';
+
+    /** @var string Keep the copy hidden until an admin reveals it. */
+    const VISIBILITY_MANUAL = 'manual';
+
+    /** @var int Attempts shown against a failed job ("attempt 2 of 3"). Retrying is always manual. */
+    const MAX_ATTEMPTS = 3;
+
     /**
      * Create and schedule a new job.
      *
@@ -93,9 +110,12 @@ class job_manager {
         $record->programdirectorid = !empty($data->programdirectorid) ? (int) $data->programdirectorid : null;
         $record->coursemanagerid = !empty($data->coursemanagerid) ? (int) $data->coursemanagerid : null;
         $record->status = self::STATUS_SCHEDULED;
+        $record->visibility = self::clean_visibility($data->visibility ?? '');
+        $record->attempts = 0;
         $record->usermodified = $USER->id;
         $record->timecreated = time();
         $record->timemodified = $record->timecreated;
+        $record->log = self::log_line('Scheduled');
 
         $record->id = $DB->insert_record('local_schedulecoursecopy_job', $record);
 
@@ -143,9 +163,111 @@ class job_manager {
         $update->scheduledate = (int) $data->scheduledate;
         $update->programdirectorid = !empty($data->programdirectorid) ? (int) $data->programdirectorid : null;
         $update->coursemanagerid = !empty($data->coursemanagerid) ? (int) $data->coursemanagerid : null;
+        if (isset($data->visibility)) {
+            $update->visibility = self::clean_visibility($data->visibility);
+        }
         $update->timemodified = time();
 
         $DB->update_record('local_schedulecoursecopy_job', $update);
+    }
+
+    /**
+     * The visibility modes, mapped to their display labels.
+     *
+     * @return array<string, string>
+     */
+    public static function visibility_options(): array {
+        return [
+            self::VISIBILITY_START => get_string('visibility_start', 'local_schedulecoursecopy'),
+            self::VISIBILITY_COPY => get_string('visibility_copy', 'local_schedulecoursecopy'),
+            self::VISIBILITY_MANUAL => get_string('visibility_manual', 'local_schedulecoursecopy'),
+        ];
+    }
+
+    /**
+     * The site default visibility mode (the "Default visibility" setting), reveal when copied
+     * unless an admin has chosen otherwise.
+     *
+     * @return string
+     */
+    public static function default_visibility(): string {
+        $value = (string) get_config('local_schedulecoursecopy', 'defaultvisibility');
+        return isset(self::visibility_options()[$value]) ? $value : self::VISIBILITY_COPY;
+    }
+
+    /**
+     * Fall back to the site default for anything that is not a known visibility mode.
+     *
+     * @param string $value The submitted value.
+     * @return string
+     */
+    public static function clean_visibility(string $value): string {
+        return isset(self::visibility_options()[$value]) ? $value : self::default_visibility();
+    }
+
+    /**
+     * Cancel a job that has not started copying yet.
+     *
+     * @param int $id The job id.
+     * @return void
+     */
+    public static function cancel(int $id): void {
+        $job = self::get($id);
+        if ($job->status !== self::STATUS_SCHEDULED) {
+            throw new \moodle_exception('errorjobwrongstatus', 'local_schedulecoursecopy');
+        }
+        self::append_log($id, 'Cancelled');
+        self::transition($id, $job->status, self::STATUS_CANCELLED);
+    }
+
+    /**
+     * Put a failed job back in the queue; it starts on the next run of the scheduled task
+     * if its copy date has already passed.
+     *
+     * @param int $id The job id.
+     * @return void
+     */
+    public static function retry(int $id): void {
+        global $DB;
+
+        $job = self::get($id);
+        if ($job->status !== self::STATUS_FAILED) {
+            throw new \moodle_exception('errorjobwrongstatus', 'local_schedulecoursecopy');
+        }
+
+        $update = new \stdClass();
+        $update->id = $id;
+        $update->failurereason = null;
+        $update->backupid = null;
+        $update->restoreid = null;
+        $update->newcourseid = null;
+        $DB->update_record('local_schedulecoursecopy_job', $update);
+
+        self::append_log($id, 'Retry queued');
+        self::transition($id, $job->status, self::STATUS_SCHEDULED);
+    }
+
+    /**
+     * One timestamped log line, e.g. "[2026-10-20 02:00:04] Backup started".
+     *
+     * @param string $message The message.
+     * @return string The line, with a trailing newline.
+     */
+    protected static function log_line(string $message): string {
+        return '[' . date('Y-m-d H:i:s') . '] ' . $message . "\n";
+    }
+
+    /**
+     * Append a line to a job's log.
+     *
+     * @param int $id The job id.
+     * @param string $message The message.
+     * @return void
+     */
+    protected static function append_log(int $id, string $message): void {
+        global $DB;
+        $log = (string) $DB->get_field('local_schedulecoursecopy_job', 'log', ['id' => $id]);
+        $DB->set_field('local_schedulecoursecopy_job', 'log', $log . self::log_line($message), ['id' => $id]);
     }
 
     /**
@@ -196,16 +318,46 @@ class job_manager {
      * @param int|null $categoryid Restrict to this category and its descendants, or null for all.
      * @return \stdClass[]
      */
-    public static function get_all(?int $categoryid = null): array {
+    public static function get_all(?int $categoryid = null, bool $includecancelled = false): array {
         global $DB;
 
-        if ($categoryid === null) {
-            return $DB->get_records('local_schedulecoursecopy_job', null, 'scheduledate DESC');
+        $where = [];
+        $params = [];
+        if ($categoryid !== null) {
+            $ids = category_manager::get_self_and_descendant_ids($categoryid);
+            [$insql, $params] = $DB->get_in_or_equal($ids, SQL_PARAMS_NAMED);
+            $where[] = "categoryid $insql";
+        }
+        if (!$includecancelled) {
+            $where[] = 'status <> :cancelled';
+            $params['cancelled'] = self::STATUS_CANCELLED;
         }
 
-        $ids = category_manager::get_self_and_descendant_ids($categoryid);
-        [$insql, $inparams] = $DB->get_in_or_equal($ids);
-        return $DB->get_records_select('local_schedulecoursecopy_job', "categoryid $insql", $inparams, 'scheduledate DESC');
+        return $DB->get_records_select(
+            'local_schedulecoursecopy_job',
+            $where ? implode(' AND ', $where) : '',
+            $params,
+            'scheduledate DESC'
+        );
+    }
+
+    /**
+     * Whether a short name is already taken by a course or by another job that is not cancelled.
+     *
+     * @param string $shortname The short name.
+     * @return bool
+     */
+    public static function shortname_in_use(string $shortname): bool {
+        global $DB;
+
+        if ($DB->record_exists('course', ['shortname' => $shortname])) {
+            return true;
+        }
+        return $DB->record_exists_select(
+            'local_schedulecoursecopy_job',
+            'shortname = :shortname AND status <> :cancelled',
+            ['shortname' => $shortname, 'cancelled' => self::STATUS_CANCELLED]
+        );
     }
 
     /**
@@ -249,6 +401,30 @@ class job_manager {
     }
 
     /**
+     * Reveal every copied job whose visibility mode is "on start date" and whose start date
+     * has arrived.
+     *
+     * @return void
+     */
+    public static function reveal_due_jobs(): void {
+        global $DB;
+
+        $due = $DB->get_records_select(
+            'local_schedulecoursecopy_job',
+            'status = :status AND visibility = :visibility AND startdate <= :now',
+            ['status' => self::STATUS_READY_TO_REVEAL, 'visibility' => self::VISIBILITY_START, 'now' => time()]
+        );
+
+        foreach ($due as $job) {
+            try {
+                self::reveal((int) $job->id);
+            } catch (\Throwable $e) {
+                debugging('Failed to reveal job ' . $job->id . ': ' . $e->getMessage(), DEBUG_DEVELOPER);
+            }
+        }
+    }
+
+    /**
      * Submit one job to Moodle's course copy engine.
      *
      * @param \stdClass $job The job record.
@@ -256,6 +432,8 @@ class job_manager {
      */
     protected static function start_copy(\stdClass $job): void {
         global $DB;
+
+        self::append_log((int) $job->id, 'Backup started (template id ' . $job->templatecourseid . ')');
 
         try {
             $category = $DB->get_record('local_schedulecoursecopy_category', ['id' => $job->categoryid], '*', MUST_EXIST);
@@ -330,7 +508,11 @@ class job_manager {
         }
 
         if ((int) $progress['status'] === \backup::STATUS_FINISHED_OK) {
+            self::append_log((int) $job->id, 'Copy finished, course ' . $job->newcourseid . ' created hidden');
             self::transition($job->id, $job->status, self::STATUS_READY_TO_REVEAL);
+            if ($job->visibility === self::VISIBILITY_COPY) {
+                self::reveal((int) $job->id);
+            }
         }
     }
 
@@ -345,6 +527,9 @@ class job_manager {
         global $DB;
 
         $job = self::get($jobid);
+        if ($job->status !== self::STATUS_READY_TO_REVEAL) {
+            throw new \moodle_exception('errorjobwrongstatus', 'local_schedulecoursecopy');
+        }
         if (empty($job->newcourseid)) {
             throw new \moodle_exception('errornocourseyet', 'local_schedulecoursecopy');
         }
@@ -356,6 +541,7 @@ class job_manager {
             enrolment_helper::enrol($job->newcourseid, $job->programdirectorid, $roleid);
         }
 
+        self::append_log($jobid, 'Revealed to students');
         self::transition($jobid, $job->status, self::STATUS_REVEALED);
 
         try {
@@ -379,9 +565,17 @@ class job_manager {
         $update = new \stdClass();
         $update->id = $jobid;
         $update->failurereason = $reason;
+        $update->attempts = (int) $DB->get_field('local_schedulecoursecopy_job', 'attempts', ['id' => $jobid]) + 1;
         $DB->update_record('local_schedulecoursecopy_job', $update);
 
+        self::append_log($jobid, 'ERROR ' . $reason);
         self::transition($jobid, $fromstatus, self::STATUS_FAILED);
+
+        try {
+            notification_helper::notify_failed(self::get($jobid));
+        } catch (\Throwable $e) {
+            debugging('Failed to send job failed notification: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
     }
 
     /**

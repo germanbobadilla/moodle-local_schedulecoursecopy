@@ -2,6 +2,55 @@
 
 All notable changes to this plugin are documented here.
 
+## 0.6.0 - 2026-10-21
+
+* Rebuilt the admin UI to the design handoff:
+  * **Overview**: a single status strip, "Needs attention" with Review / Reveal
+    now, upcoming copies with date blocks, and a programs table (leaf categories
+    with jobs).
+  * **Categories**: one page with the category tree on the left (filter,
+    collapse) and the selected category on the right. Add and edit open in a
+    modal (`core_form/modalform`); `category_edit.php` remains as the no-JS
+    fallback, and `category_view.php` redirects here. Categories have an
+    optional **ID number**.
+  * **Schedule copies** panel: a defaults row (template, copy on, start, end,
+    visibility). Blank cells inherit the defaults. Rows can be pasted in from
+    Excel or Sheets (DD/MM/YYYY is converted) or imported from a CSV (see
+    `example.csv`). Validation runs live and on the server, in the design's
+    order, with the message under the short name. Short names are now also
+    checked against other jobs, not just existing courses.
+  * **Status report**: status chips with counts, a category filter, search, row
+    selection, and a bulk bar (Retry failed / Reveal now / Cancel scheduled).
+  * **Job drawer**, opened from any job on any page: failure panel with the job
+    log, a progress stepper, details, and actions that depend on the status.
+  * **Settings** tab (`settings_page.php`): grouped sections, a role checkbox
+    grid, placeholder chips, and "Reset to default". The admin settings page
+    still works and saves the same values.
+* New job lifecycle features:
+  * **Visibility** per job: reveal on start date (the scheduled task now does
+    this), reveal as soon as copied, or keep hidden for a manual reveal.
+    Existing jobs are set to manual, which matches how they worked before.
+  * A **Cancelled** status. Cancelled jobs disappear from every list and free
+    their short name.
+  * **Retry** for failed jobs, plus a failure **attempt** count.
+  * A timestamped **log** on each job.
+  * An optional **Copy failed** email (on by default), sent to the notify roles
+    and site admins, with its own subject and body and an `{errormessage}`
+    placeholder.
+* New **Default visibility** setting (Settings > Reveal; defaults to "Reveal when
+  copied"). It prefills the visibility for new copies in the Schedule copies
+  panel and the single job form; each batch can still change it.
+* New **reporting endpoint**: the `local_schedulecoursecopy_get_jobs` web service, in a
+  predefined "Schedule Course Copy reports" service, for other systems with a token.
+  It filters by category (subcategories included), status, course, template, name and
+  start/copy date ranges, and returns each job's status, category path, course link,
+  and start and end dates, plus counts per status. `status.php` takes the same filters
+  (dates also as YYYY-MM-DD) and returns the same fields for logged-in users. New
+  read-only capability `local/schedulecoursecopy:viewreports` for reporting accounts.
+  Now requires Moodle 4.2 or later (`core_external`).
+* Program director is now optional in the single job form, as documented in
+  0.1.10. Before this, jobs created from the bulk table couldn't be edited.
+
 ## 0.5.0 - 2026-10-21
 
 * Added optional job notifications, off by default. Configure one or more
