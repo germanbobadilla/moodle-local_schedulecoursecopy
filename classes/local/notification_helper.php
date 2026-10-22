@@ -17,8 +17,8 @@
 namespace local_schedulecoursecopy\local;
 
 /**
- * Sends the two optional job-lifecycle notifications: one when a job is scheduled, one when
- * its copy is revealed (live). Both are plain Moodle messages (Web popup by default; each
+ * Sends the optional job-lifecycle notifications: when a job is scheduled, when its copy is
+ * revealed (live), and when a copy fails. Both are plain Moodle messages (Web popup by default; each
  * recipient can turn on email too in their own notification preferences) with an
  * admin-editable subject/body template and a small set of {token} placeholders.
  *
@@ -54,8 +54,8 @@ class notification_helper {
         }
 
         $tokens = self::base_tokens($job, $template);
-        $subjecttemplate = get_config('local_schedulecoursecopy', 'scheduledemailsubject');
-        $bodytemplate = get_config('local_schedulecoursecopy', 'scheduledemailbody');
+        $subjecttemplate = self::template('scheduledemailsubject');
+        $bodytemplate = self::template('scheduledemailbody');
 
         foreach ($recipients as $recipient) {
             self::send($recipient, $subjecttemplate, $bodytemplate, $tokens, 'job_scheduled');
@@ -87,12 +87,61 @@ class notification_helper {
         }
 
         $tokens = self::base_tokens($job, $template, $newcourse);
-        $subjecttemplate = get_config('local_schedulecoursecopy', 'liveemailsubject');
-        $bodytemplate = get_config('local_schedulecoursecopy', 'liveemailbody');
+        $subjecttemplate = self::template('liveemailsubject');
+        $bodytemplate = self::template('liveemailbody');
 
         foreach ($recipients as $recipient) {
             self::send($recipient, $subjecttemplate, $bodytemplate, $tokens, 'job_live');
         }
+    }
+
+    /**
+     * Notify the configured notify-roles, plus site admins, that a job's copy failed. Does
+     * nothing when failure emails are turned off.
+     *
+     * @param \stdClass $job The job record, with failurereason set.
+     * @return void
+     */
+    public static function notify_failed(\stdClass $job): void {
+        global $DB;
+
+        if (!get_config('local_schedulecoursecopy', 'failnotify')) {
+            return;
+        }
+
+        $template = $DB->get_record('course', ['id' => $job->templatecourseid]);
+        if (!$template) {
+            return;
+        }
+
+        $roleids = self::get_notify_role_ids();
+        $recipients = empty($roleids) ? [] : self::get_users_with_roles((int) $job->templatecourseid, $roleids);
+        foreach (get_admins() as $admin) {
+            $recipients[$admin->id] = $admin;
+        }
+
+        $tokens = self::base_tokens($job, $template);
+        $tokens['errormessage'] = (string) $job->failurereason;
+        $subjecttemplate = self::template('failemailsubject');
+        $bodytemplate = self::template('failemailbody');
+
+        foreach ($recipients as $recipient) {
+            self::send($recipient, $subjecttemplate, $bodytemplate, $tokens, 'job_failed');
+        }
+    }
+
+    /**
+     * A configured subject or body template, falling back to the shipped default.
+     *
+     * @param string $name The setting name, e.g. failemailsubject.
+     * @return string
+     */
+    protected static function template(string $name): string {
+        $value = get_config('local_schedulecoursecopy', $name);
+        if ($value === false || $value === '') {
+            return get_string('settings_' . $name . '_default', 'local_schedulecoursecopy');
+        }
+        return $value;
     }
 
     /**
@@ -192,7 +241,7 @@ class notification_helper {
      * @param string $subjecttemplate The admin-configured subject template.
      * @param string $bodytemplate The admin-configured body template.
      * @param array<string, string> $tokens The shared token replacement map.
-     * @param string $messagename The message provider name ('job_scheduled' or 'job_live').
+     * @param string $messagename The message provider name ('job_scheduled', 'job_live' or 'job_failed').
      * @return void
      */
     protected static function send(

@@ -30,7 +30,8 @@ class category_manager {
     /**
      * Create or update a category.
      *
-     * @param \stdClass $data Must contain name, parentid (0 for none) and moodlecategoryid (0 for none).
+     * @param \stdClass $data Must contain name, parentid (0 for none) and moodlecategoryid (0 for none);
+     *                        idnumber is optional.
      * @return int The category id.
      */
     public static function save(\stdClass $data): int {
@@ -40,6 +41,7 @@ class category_manager {
         $record->name = trim($data->name);
         $record->parentid = !empty($data->parentid) ? (int) $data->parentid : null;
         $record->moodlecategoryid = !empty($data->moodlecategoryid) ? (int) $data->moodlecategoryid : null;
+        $record->idnumber = trim($data->idnumber ?? '') !== '' ? trim($data->idnumber) : null;
         $record->usermodified = $USER->id;
         $record->timemodified = time();
 
@@ -96,6 +98,61 @@ class category_manager {
             null,
             'name ASC'
         );
+    }
+
+    /**
+     * Group every category by its parent id (0 for top level).
+     *
+     * @param \stdClass[]|null $all Categories to group, or null for every category.
+     * @return array<int, \stdClass[]>
+     */
+    public static function get_children_map(?array $all = null): array {
+        $map = [];
+        foreach ($all ?? self::get_all() as $category) {
+            $map[(int) ($category->parentid ?? 0)][] = $category;
+        }
+        return $map;
+    }
+
+    /**
+     * Whether a category has no subcategories, so courses can be scheduled into it.
+     *
+     * @param int $id The category id.
+     * @return bool
+     */
+    public static function is_leaf(int $id): bool {
+        global $DB;
+        return !$DB->record_exists('local_schedulecoursecopy_category', ['parentid' => $id]);
+    }
+
+    /**
+     * The category and its ancestors, top level first.
+     *
+     * @param int $id The category id.
+     * @param \stdClass[]|null $all Every category, indexed by id, or null to load them.
+     * @return \stdClass[]
+     */
+    public static function get_path(int $id, ?array $all = null): array {
+        $all = $all ?? self::get_all();
+        $path = [];
+        $seen = [];
+        while ($id && isset($all[$id]) && !isset($seen[$id])) {
+            $seen[$id] = true;
+            array_unshift($path, $all[$id]);
+            $id = (int) $all[$id]->parentid;
+        }
+        return $path;
+    }
+
+    /**
+     * The category's path as "Main Campus / Nursing / Vocational Nurse".
+     *
+     * @param int $id The category id.
+     * @param \stdClass[]|null $all Every category, indexed by id, or null to load them.
+     * @return string Plain text; escape it with s() on output.
+     */
+    public static function get_path_string(int $id, ?array $all = null): string {
+        return implode(' / ', array_map(fn($c) => $c->name, self::get_path($id, $all)));
     }
 
     /**

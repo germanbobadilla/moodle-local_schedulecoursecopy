@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/schedulecoursecopy/db" VERSION="20260921" COMMENT="XMLDB file for Moodle local/schedulecoursecopy"
+<XMLDB PATH="local/schedulecoursecopy/db" VERSION="20261022" COMMENT="XMLDB file for Moodle local/schedulecoursecopy"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -10,6 +10,7 @@
         <FIELD NAME="parentid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Parent local_schedulecoursecopy_category id, null for a top level campus"/>
         <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Display name, e.g. Modesto or Vocational Nurse"/>
         <FIELD NAME="moodlecategoryid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="The real Moodle course category new live courses are created in, required on categories that hold jobs"/>
+        <FIELD NAME="idnumber" TYPE="char" LENGTH="100" NOTNULL="false" SEQUENCE="false" COMMENT="Optional free text identifier, e.g. VN"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
@@ -37,11 +38,14 @@
         <FIELD NAME="scheduledate" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="When the scheduled task should start the copy"/>
         <FIELD NAME="programdirectorid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Optional user enrolled as the program director once the course is revealed"/>
         <FIELD NAME="coursemanagerid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Optional course manager user recorded against this job"/>
-        <FIELD NAME="status" TYPE="char" LENGTH="30" NOTNULL="true" DEFAULT="scheduled" SEQUENCE="false" COMMENT="scheduled, copying, ready_to_reveal, revealed or failed"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="30" NOTNULL="true" DEFAULT="scheduled" SEQUENCE="false" COMMENT="scheduled, copying, ready_to_reveal, revealed, failed or cancelled"/>
+        <FIELD NAME="visibility" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="start" SEQUENCE="false" COMMENT="When to reveal the copy: start (on its start date), copy (as soon as it is copied) or manual"/>
+        <FIELD NAME="attempts" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="How many times the copy has failed"/>
         <FIELD NAME="backupid" TYPE="char" LENGTH="32" NOTNULL="false" SEQUENCE="false" COMMENT="core_backup backup controller id for this copy"/>
         <FIELD NAME="restoreid" TYPE="char" LENGTH="32" NOTNULL="false" SEQUENCE="false" COMMENT="core_backup restore controller id for this copy"/>
         <FIELD NAME="newcourseid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="The live course once the copy has been created"/>
         <FIELD NAME="failurereason" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="log" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Timestamped lines describing what happened to this job"/>
         <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>

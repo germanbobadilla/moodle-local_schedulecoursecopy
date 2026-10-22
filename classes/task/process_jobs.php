@@ -19,7 +19,8 @@ namespace local_schedulecoursecopy\task;
 use local_schedulecoursecopy\local\job_manager;
 
 /**
- * Scheduled task that starts due jobs and advances in-progress ones.
+ * Scheduled task that starts due jobs, advances in-progress ones, and reveals copies
+ * set to go live on their start date.
  *
  * Starting a job hands the actual course duplication off to Moodle's own course
  * copy engine, which runs on its own adhoc task; this task never performs a
@@ -40,12 +41,13 @@ class process_jobs extends \core\task\scheduled_task {
     }
 
     /**
-     * Start due jobs and check on jobs already copying.
+     * Start due jobs, check on jobs already copying, and reveal copies whose start date has come.
      *
      * @return void
      */
     public function execute() {
         job_manager::process_due_jobs();
         job_manager::check_in_progress_jobs();
+        job_manager::reveal_due_jobs();
     }
 }

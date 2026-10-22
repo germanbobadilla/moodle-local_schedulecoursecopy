@@ -54,6 +54,18 @@ if ($hassiteconfig) {
         $roleoptions
     ));
 
+    $settings->add(new admin_setting_configselect(
+        'local_schedulecoursecopy/defaultvisibility',
+        get_string('settings_defaultvisibility', 'local_schedulecoursecopy'),
+        get_string('settings_defaultvisibility_desc', 'local_schedulecoursecopy'),
+        'copy',
+        [
+            'copy' => get_string('visibility_copy', 'local_schedulecoursecopy'),
+            'start' => get_string('visibility_start', 'local_schedulecoursecopy'),
+            'manual' => get_string('visibility_manual', 'local_schedulecoursecopy'),
+        ]
+    ));
+
     $settings->add(new admin_setting_configmultiselect(
         'local_schedulecoursecopy/notifyroles',
         get_string('settings_notifyroles', 'local_schedulecoursecopy'),
@@ -91,6 +103,29 @@ if ($hassiteconfig) {
         get_string('settings_liveemailbody', 'local_schedulecoursecopy'),
         get_string('settings_emailtokens_desc', 'local_schedulecoursecopy'),
         get_string('settings_liveemailbody_default', 'local_schedulecoursecopy'),
+        PARAM_TEXT
+    ));
+
+    $settings->add(new admin_setting_configcheckbox(
+        'local_schedulecoursecopy/failnotify',
+        get_string('settings_failnotify', 'local_schedulecoursecopy'),
+        get_string('settings_failnotify_desc', 'local_schedulecoursecopy'),
+        1
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_schedulecoursecopy/failemailsubject',
+        get_string('settings_failemailsubject', 'local_schedulecoursecopy'),
+        get_string('settings_emailtokens_desc', 'local_schedulecoursecopy'),
+        get_string('settings_failemailsubject_default', 'local_schedulecoursecopy'),
+        PARAM_TEXT
+    ));
+
+    $settings->add(new admin_setting_configtextarea(
+        'local_schedulecoursecopy/failemailbody',
+        get_string('settings_failemailbody', 'local_schedulecoursecopy'),
+        get_string('settings_emailtokens_desc', 'local_schedulecoursecopy'),
+        get_string('settings_failemailbody_default', 'local_schedulecoursecopy'),
         PARAM_TEXT
     ));
 }

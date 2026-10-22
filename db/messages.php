@@ -30,4 +30,7 @@ $messageproviders = [
     // Sent to the configured notify-roles plus everyone enrolled in the template, once a job's
     // copy is revealed (live).
     'job_live' => [],
+    // Sent to the configured notify-roles plus site admins when a copy fails, if failure
+    // emails are turned on.
+    'job_failed' => [],
 ];

@@ -33,18 +33,12 @@ require_login();
 require_capability('local/schedulecoursecopy:manage', context_system::instance());
 
 $id = optional_param('id', 0, PARAM_INT);
-$listurl = new moodle_url('/local/schedulecoursecopy/categories.php');
-$url = new moodle_url('/local/schedulecoursecopy/category_edit.php', $id ? ['id' => $id] : []);
+$parentid = optional_param('parentid', 0, PARAM_INT);
+$listurl = new moodle_url('/local/schedulecoursecopy/categories.php', $id ? ['id' => $id] : ($parentid ? ['id' => $parentid] : []));
+$url = new moodle_url('/local/schedulecoursecopy/category_edit.php', $id ? ['id' => $id] : ['parentid' => $parentid]);
 
-$PAGE->set_context(context_system::instance());
-$PAGE->set_url($url);
-$PAGE->set_pagelayout('admin');
 $title = $id ? get_string('categoryedit', 'local_schedulecoursecopy') : get_string('categoryadd', 'local_schedulecoursecopy');
-$PAGE->set_title($title);
-$PAGE->set_heading(get_string('pluginname', 'local_schedulecoursecopy'));
-$PAGE->navbar->add(get_string('pluginname', 'local_schedulecoursecopy'), new moodle_url('/local/schedulecoursecopy/index.php'));
-$PAGE->navbar->add(get_string('navcategories', 'local_schedulecoursecopy'), $listurl);
-$PAGE->navbar->add($title, $url);
+navigation::setup_page($url, $title);
 
 $category = null;
 if ($id) {
@@ -52,19 +46,17 @@ if ($id) {
 }
 
 $form = new category_form($url, ['excludeid' => $id]);
-if ($category) {
-    $form->set_data($category);
-}
+$form->set_data($category ?: category_form::new_child_data($parentid));
 
 if ($form->is_cancelled()) {
     redirect($listurl);
 } else if ($data = $form->get_data()) {
-    category_manager::save($data);
-    redirect($listurl, get_string('categorysaved', 'local_schedulecoursecopy'), null, \core\output\notification::NOTIFY_SUCCESS);
+    $savedid = category_manager::save($data);
+    redirect(new moodle_url('/local/schedulecoursecopy/categories.php', ['id' => $savedid]), get_string('categorysaved', 'local_schedulecoursecopy'), null, \core\output\notification::NOTIFY_SUCCESS);
 }
 
-echo $OUTPUT->header();
-echo $OUTPUT->heading($title);
-navigation::print_tabs('categories');
+navigation::header('categories', $title);
+echo html_writer::start_div('scc-panel scc-formpanel');
 $form->display();
-echo $OUTPUT->footer();
+echo html_writer::end_div();
+navigation::footer();
